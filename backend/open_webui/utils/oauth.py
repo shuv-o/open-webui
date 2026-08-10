@@ -1832,6 +1832,10 @@ class OAuthManager:
             if not sub:
                 log.warning(f'OAuth callback failed, sub is missing: {user_data}')
                 raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+            # Some providers (e.g. BdREN, GitHub) return a numeric id rather than a
+            # string sub. It's stored/queried as JSONB ->> text, so a non-str sub
+            # (e.g. int 1) causes Postgres to fail comparing text = integer.
+            sub = str(sub)
 
             oauth_data = {}
             oauth_data[provider] = {
