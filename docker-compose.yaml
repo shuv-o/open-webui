@@ -24,6 +24,14 @@ services:
       - 'OLLAMA_BASE_URL=http://ollama:11434'
       - 'WEBUI_SECRET_KEY='
       - 'WEBUI_NAME=BdREN AI'
+      # Point at your vLLM server's OpenAI-compatible endpoint (include the /v1 suffix)
+      - 'OPENAI_API_BASE_URLS=http://<your-vllm-host>:8000/v1'
+      - 'OPENAI_API_KEYS=none'
+      # User memory: persist durable facts/preferences per user and inject them into future chats
+      - 'ENABLE_MEMORIES=true'
+      - 'ENABLE_MEMORY_SYSTEM_CONTEXT=true'
+      - 'ENABLE_MEMORY_BACKGROUND_REVIEW=true'
+      - 'MEMORIES_REVIEW_INTERVAL_TURNS=10'
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
