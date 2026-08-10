@@ -36,6 +36,10 @@ WORKDIR /app
 RUN apk add --no-cache git
 
 COPY package.json package-lock.json ./
+# Cypress is a devDependency used only for local E2E testing (cy:open); skip its
+# binary download here since it's unneeded for a production build and its
+# postinstall download has been flaky in this build environment.
+ENV CYPRESS_INSTALL_BINARY=0
 RUN npm ci --force
 
 COPY . .

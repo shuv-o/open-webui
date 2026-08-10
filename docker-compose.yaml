@@ -1,13 +1,4 @@
 services:
-  ollama:
-    volumes:
-      - ollama:/root/.ollama
-    container_name: ollama
-    pull_policy: always
-    tty: true
-    restart: unless-stopped
-    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
-
   postgres:
     image: postgres:16-alpine
     container_name: open-webui-postgres
@@ -28,18 +19,21 @@ services:
     volumes:
       - open-webui:/app/backend/data
     depends_on:
-      - ollama
       - postgres
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
-      - 'OLLAMA_BASE_URL=http://ollama:11434'
       - 'WEBUI_SECRET_KEY='
       - 'WEBUI_NAME=BdREN AI'
       - 'DATABASE_URL=postgresql://openwebui:${POSTGRES_PASSWORD}@postgres:5432/openwebui'
-      # Point at your vLLM server's OpenAI-compatible endpoint (include the /v1 suffix)
-      - 'OPENAI_API_BASE_URLS=http://<your-vllm-host>:8000/v1'
+      # No local Ollama — this deployment only talks to the remote vLLM server
+      - 'ENABLE_OLLAMA_API=false'
+      # Point at your vLLM server's OpenAI-compatible endpoint on the other machine (include the /v1 suffix)
+      - 'OPENAI_API_BASE_URLS=http://<vllm-server-ip>:8000/v1'
       - 'OPENAI_API_KEYS=none'
+      # Remote server over the network can be slower to answer "list models" than localhost;
+      # default is 10s which can flake under load — give it more room
+      - 'AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST=30'
       # User memory: persist durable facts/preferences per user and inject them into future chats
       - 'ENABLE_MEMORIES=true'
       - 'ENABLE_MEMORY_SYSTEM_CONTEXT=true'
@@ -50,6 +44,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  ollama: {}
   open-webui: {}
   postgres-data: {}
