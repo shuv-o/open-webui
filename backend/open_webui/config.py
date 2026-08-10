@@ -2543,6 +2543,16 @@ FEISHU_OAUTH_SCOPE = os.getenv('FEISHU_OAUTH_SCOPE', 'contact:user.base:readonly
 
 FEISHU_REDIRECT_URI = os.getenv('FEISHU_REDIRECT_URI', '')
 
+BDREN_CLIENT_ID = os.getenv('BDREN_CLIENT_ID', '')
+
+BDREN_CLIENT_SECRET = os.getenv('BDREN_CLIENT_SECRET', '')
+
+BDREN_OAUTH_BASE_URL = os.getenv('BDREN_OAUTH_BASE_URL', 'https://accounts.bdren.net.bd').rstrip('/')
+
+BDREN_OAUTH_SCOPE = os.getenv('BDREN_OAUTH_SCOPE', 'profile')
+
+BDREN_REDIRECT_URI = os.getenv('BDREN_REDIRECT_URI', '')
+
 ENABLE_OAUTH_ROLE_MANAGEMENT = os.getenv('ENABLE_OAUTH_ROLE_MANAGEMENT', 'False').lower() == 'true'
 
 ENABLE_OAUTH_GROUP_MANAGEMENT = os.getenv('ENABLE_OAUTH_GROUP_MANAGEMENT', 'False').lower() == 'true'
@@ -2724,6 +2734,29 @@ def load_oauth_providers():
             'sub_claim': 'user_id',
         }
 
+    if BDREN_CLIENT_ID and BDREN_CLIENT_SECRET:
+
+        def bdren_oauth_register(oauth: OAuth):
+            client = oauth.register(
+                name='bdren',
+                client_id=BDREN_CLIENT_ID,
+                client_secret=BDREN_CLIENT_SECRET,
+                access_token_url=f'{BDREN_OAUTH_BASE_URL}/oauth/token/',
+                authorize_url=f'{BDREN_OAUTH_BASE_URL}/oauth/authorize/',
+                api_base_url=BDREN_OAUTH_BASE_URL,
+                userinfo_endpoint=f'{BDREN_OAUTH_BASE_URL}/oauth/profile/',
+                client_kwargs=oauth_client_kwargs(BDREN_OAUTH_SCOPE),
+                redirect_uri=BDREN_REDIRECT_URI,
+            )
+            return client
+
+        OAUTH_PROVIDERS['bdren'] = {
+            'name': 'BdREN Accounts',
+            'register': bdren_oauth_register,
+            # BdREN's /oauth/profile/ response uses "id", not "sub"
+            'sub_claim': 'id',
+        }
+
     configured_providers = []
     if GOOGLE_CLIENT_ID:
         configured_providers.append('Google')
@@ -2733,6 +2766,8 @@ def load_oauth_providers():
         configured_providers.append('GitHub')
     if FEISHU_CLIENT_ID:
         configured_providers.append('Feishu')
+    if BDREN_CLIENT_ID:
+        configured_providers.append('BdREN')
 
     if configured_providers and not OPENID_PROVIDER_URL and not OPENID_END_SESSION_ENDPOINT:
         provider_list = ', '.join(configured_providers)
