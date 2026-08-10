@@ -8,6 +8,17 @@ services:
     restart: unless-stopped
     image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: open-webui-postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - 'POSTGRES_DB=openwebui'
+      - 'POSTGRES_USER=openwebui'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
+    restart: unless-stopped
+
   open-webui:
     build:
       context: .
@@ -18,12 +29,14 @@ services:
       - open-webui:/app/backend/data
     depends_on:
       - ollama
+      - postgres
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
       - 'OLLAMA_BASE_URL=http://ollama:11434'
       - 'WEBUI_SECRET_KEY='
       - 'WEBUI_NAME=BdREN AI'
+      - 'DATABASE_URL=postgresql://openwebui:${POSTGRES_PASSWORD}@postgres:5432/openwebui'
       # Point at your vLLM server's OpenAI-compatible endpoint (include the /v1 suffix)
       - 'OPENAI_API_BASE_URLS=http://<your-vllm-host>:8000/v1'
       - 'OPENAI_API_KEYS=none'
@@ -39,3 +52,4 @@ services:
 volumes:
   ollama: {}
   open-webui: {}
+  postgres-data: {}
