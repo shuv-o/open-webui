@@ -1819,6 +1819,15 @@ class OAuthManager:
                             user_data[key] = value
             if provider == 'feishu' and isinstance(user_data, dict) and 'data' in user_data:
                 user_data = user_data['data']
+            if provider == 'bdren' and isinstance(user_data, dict):
+                # BdREN's profile has no single "name" field, only first_name/last_name.
+                # Synthesize one under whatever key OAUTH_USERNAME_CLAIM points at, so
+                # both initial signup and update-on-login pick up the full name.
+                full_name = ' '.join(
+                    part for part in (user_data.get('first_name'), user_data.get('last_name')) if part
+                ).strip()
+                if full_name:
+                    user_data[auth_config.OAUTH_USERNAME_CLAIM] = full_name
             if not user_data:
                 log.warning(f'OAuth callback failed, user data is missing: {token}')
                 raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
