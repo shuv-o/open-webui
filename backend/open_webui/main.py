@@ -2869,6 +2869,10 @@ if os.path.exists(FRONTEND_BUILD_DIR):
     if os.path.exists(pyodide_dir):
         app.mount('/pyodide', CORSStaticFiles(directory=pyodide_dir), name='pyodide')
 
+    tesseract_dir = FRONTEND_BUILD_DIR / 'tesseract'
+    if os.path.exists(tesseract_dir):
+        app.mount('/tesseract', CORSStaticFiles(directory=tesseract_dir), name='tesseract')
+
     app.mount(
         '/',
         SPAStaticFiles(directory=FRONTEND_BUILD_DIR, html=True),

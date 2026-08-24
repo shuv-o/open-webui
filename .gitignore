@@ -23,6 +23,9 @@ CLAUDE.md
 static/pyodide/*
 !static/pyodide/pyodide-lock.json
 
+# Tesseract.js OCR distribution (fetched by scripts/prepare-tesseract.js)
+static/tesseract/
+
 # Distribution / packaging
 .Python
 build/

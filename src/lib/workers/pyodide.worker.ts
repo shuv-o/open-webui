@@ -14,6 +14,55 @@ declare global {
 }
 
 // ---------------------------------------------------------------------------
+// OCR bridge (Tesseract.js, loaded on first use)
+// ---------------------------------------------------------------------------
+// Pyodide has no native OCR support — no compiled tesseract binary exists for
+// WASM/Pyodide, and pip-installable OCR libraries (pytesseract, easyocr,
+// rapidocr) all depend on native binaries or ML frameworks Pyodide can't run.
+// Tesseract.js is a separate WASM build of Tesseract (unrelated to Pyodide's
+// own package build) that runs directly in this worker; it's bridged into
+// Python below via Pyodide's JS interop so `from js import ocrImage` works.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let ocrWorkerPromise: Promise<any> | null = null;
+
+async function ensureOcrWorker() {
+	if (!ocrWorkerPromise) {
+		ocrWorkerPromise = (async () => {
+			if (!self.Tesseract) {
+				// tesseract.min.js is a UMD bundle (assigns `self.Tesseract`), not an
+				// ES module — `importScripts` isn't available in a module worker, so
+				// it's loaded via dynamic import instead, which is happy to execute
+				// a script with no import/export statements as a module with no exports.
+				// The path is kept in a variable (rather than a literal) so TypeScript
+				// treats this as an opaque runtime import instead of trying to resolve it.
+				const tesseractScriptUrl = '/tesseract/tesseract.min.js';
+				await import(/* @vite-ignore */ tesseractScriptUrl);
+			}
+			return self.Tesseract.createWorker(['eng', 'ben'], 1, {
+				workerPath: '/tesseract/worker.min.js',
+				corePath: '/tesseract/core/',
+				langPath: '/tesseract/lang-data/'
+			});
+		})();
+	}
+	return ocrWorkerPromise;
+}
+
+/**
+ * OCR an image already present on the Pyodide filesystem (e.g. under
+ * /mnt/uploads/). Exposed to Python as `js.ocrImage`.
+ */
+self.ocrImage = async (path: string): Promise<string> => {
+	const worker = await ensureOcrWorker();
+	const bytes = self.pyodide.FS.readFile(path) as Uint8Array;
+	const {
+		data: { text }
+	} = await worker.recognize(new Blob([bytes as BlobPart]));
+	return text;
+};
+
+// ---------------------------------------------------------------------------
 // Pyodide bootstrap
 // ---------------------------------------------------------------------------
 

@@ -483,7 +483,17 @@ CODE_INTERPRETER_PYODIDE_PROMPT = """
 - User-uploaded files are available at `/mnt/uploads/`. When the user asks you to work with their files, read from this directory.
 - You can also write output files to `/mnt/uploads/` so the user can access and download them from the file browser.
 - The file system persists across code executions within the same session.
-- Use `import os; os.listdir('/mnt/uploads')` to discover available files."""
+- Use `import os; os.listdir('/mnt/uploads')` to discover available files.
+
+##### OCR
+
+- A pre-loaded OCR helper is available for reading text out of scanned images (PNG/JPG/etc.), supporting English and Bengali. It is NOT a pip package — call it directly:
+  ```python
+  from js import ocrImage
+  text = await ocrImage('/mnt/uploads/scan.png')
+  print(text)
+  ```
+- The path must point to a file already on the `/mnt/uploads/` filesystem. The first call in a session is slower while the OCR engine loads; subsequent calls are fast."""
 
 
 ####################################

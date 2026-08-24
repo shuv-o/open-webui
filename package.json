@@ -3,10 +3,10 @@
 	"version": "0.11.0",
 	"private": true,
 	"scripts": {
-		"dev": "npm run pyodide:fetch && vite dev --host",
-		"dev:5050": "npm run pyodide:fetch && vite dev --port 5050",
-		"build": "npm run pyodide:fetch && vite build",
-		"build:watch": "npm run pyodide:fetch && vite build --watch",
+		"dev": "npm run pyodide:fetch && npm run tesseract:fetch && vite dev --host",
+		"dev:5050": "npm run pyodide:fetch && npm run tesseract:fetch && vite dev --port 5050",
+		"build": "npm run pyodide:fetch && npm run tesseract:fetch && vite build",
+		"build:watch": "npm run pyodide:fetch && npm run tesseract:fetch && vite build --watch",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -19,7 +19,8 @@
 		"i18n:parse": "i18next --config i18next-parser.config.ts && prettier --write \"src/lib/i18n/**/*.{js,json}\"",
 		"cy:open": "cypress open",
 		"test:frontend": "vitest --passWithNoTests",
-		"pyodide:fetch": "node scripts/prepare-pyodide.js"
+		"pyodide:fetch": "node scripts/prepare-pyodide.js",
+		"tesseract:fetch": "node scripts/prepare-tesseract.js"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "3.2.2",
@@ -141,6 +142,7 @@
 		"sortablejs": "^1.15.6",
 		"sql.js": "^1.14.1",
 		"svelte-sonner": "^0.3.19",
+		"tesseract.js": "^7.0.0",
 		"tippy.js": "^6.3.7",
 		"turndown": "^7.2.0",
 		"turndown-plugin-gfm": "^1.0.2",

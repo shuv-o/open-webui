@@ -20,6 +20,7 @@ services:
       - open-webui:/app/backend/data
     depends_on:
       - postgres
+      - docling
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
@@ -39,8 +40,20 @@ services:
       - 'ENABLE_MEMORY_SYSTEM_CONTEXT=true'
       - 'ENABLE_MEMORY_BACKGROUND_REVIEW=true'
       - 'MEMORIES_REVIEW_INTERVAL_TURNS=10'
+      # Route uploaded PDFs/images through the docling service below so scanned
+      # documents are OCR'd on upload instead of the LLM trying (and failing) to
+      # OCR them itself via the Pyodide code interpreter.
+      - 'CONTENT_EXTRACTION_ENGINE=docling'
+      - 'DOCLING_SERVER_URL=http://docling:5001'
+      - 'PDF_EXTRACT_IMAGES=true'
+      - 'DOCLING_PARAMS={"do_ocr": true, "ocr_engine": "easyocr", "ocr_lang": ["en", "bn"]}'
     extra_hosts:
       - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+  docling:
+    image: ghcr.io/docling-project/docling-serve-cpu:latest
+    container_name: open-webui-docling
     restart: unless-stopped
 
 volumes:

@@ -13,6 +13,28 @@ const sandboxScript = String.raw`
 		parent.postMessage(message, '*', transfer || []);
 	}
 
+	// OCR bridge (Tesseract.js, loaded on first use). Pyodide has no native OCR
+	// support, so this bridges in a separate WASM build of Tesseract, loaded via
+	// a <script> tag above, and exposes it to Python as \`js.ocrImage\`.
+	let ocrWorkerPromise = null;
+	function ensureOcrWorker() {
+		if (!ocrWorkerPromise) {
+			const base = self.__TESSERACT_BASE_URL__ || '/tesseract/';
+			ocrWorkerPromise = window.Tesseract.createWorker(['eng', 'ben'], 1, {
+				workerPath: base + 'worker.min.js',
+				corePath: base + 'core/',
+				langPath: base + 'lang-data/'
+			});
+		}
+		return ocrWorkerPromise;
+	}
+	window.ocrImage = async function (path) {
+		const worker = await ensureOcrWorker();
+		const bytes = pyodide.FS.readFile(path);
+		const result = await worker.recognize(new Blob([bytes]));
+		return result.data.text;
+	};
+
 	async function loadRuntime(packages) {
 		stdout = null;
 		stderr = null;
@@ -190,8 +212,9 @@ const sandboxScript = String.raw`
 
 // indexURL must be absolute because about:srcdoc can't be a base URL
 const pyodideIndexURL = `${globalThis.location?.origin ?? ''}/pyodide/`;
+const tesseractBaseURL = `${globalThis.location?.origin ?? ''}/tesseract/`;
 
-const sandboxHtml = `<!doctype html><html><head><meta charset="utf-8"><script>window.__PYODIDE_INDEX_URL__=${JSON.stringify(pyodideIndexURL)}</script></head><body><script src="${pyodideIndexURL}pyodide.js"></script><script>${sandboxScript}</script></body></html>`;
+const sandboxHtml = `<!doctype html><html><head><meta charset="utf-8"><script>window.__PYODIDE_INDEX_URL__=${JSON.stringify(pyodideIndexURL)};window.__TESSERACT_BASE_URL__=${JSON.stringify(tesseractBaseURL)}</script></head><body><script src="${pyodideIndexURL}pyodide.js"></script><script src="${tesseractBaseURL}tesseract.min.js"></script><script>${sandboxScript}</script></body></html>`;
 
 export class PyodideSandboxHost {
 	onmessage: MessageListener | null = null;
