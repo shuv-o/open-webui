@@ -14,15 +14,41 @@ const packages = [
 	'seaborn',
 	'pytz',
 	'black',
-	'openai',
-	'openpyxl'
+	'openai'
 ];
 
 // Pure-Python packages whose wheels must be downloaded from PyPI and saved into
 // static/pyodide/ so that the browser can install them offline via micropip.
 // Packages already provided by the Pyodide distribution (click, platformdirs,
-// typing_extensions, etc.) do NOT need to be listed here.
-const pypiPackages = ['black', 'pathspec', 'mypy_extensions', 'pytokens'];
+// typing_extensions, etc.) do NOT need to be listed here — only packages absent
+// from Pyodide's own package repository need this treatment. openpyxl,
+// python-docx, and python-pptx are all absent from that repository (confirmed
+// via micropip.freeze() during development — they install fine at build time
+// over the network but vanish from the frozen lock file), so unlike Pyodide's
+// own packages they'd otherwise require a live PyPI fetch from the *browser* at
+// chat time. et-xmlfile and XlsxWriter are pulled in here too since they're
+// runtime dependencies of openpyxl/python-pptx that are likewise absent from
+// Pyodide's repository.
+const pypiPackages = [
+	'black',
+	'pathspec',
+	'mypy_extensions',
+	'pytokens',
+	'openpyxl',
+	'et-xmlfile',
+	'python-docx',
+	'python-pptx',
+	'xlsxwriter'
+];
+
+// A handful of packages have a PyPI/pip name that differs from the Python
+// import name their wheel actually provides — the pyodide-lock.json `imports`
+// field must reflect the real import name (mirrors how Pyodide's own native
+// packages, e.g. beautifulsoup4 -> bs4, record this).
+const importNameOverrides = {
+	'python-docx': 'docx',
+	'python-pptx': 'pptx'
+};
 
 import { loadPyodide } from 'pyodide';
 import { setGlobalDispatcher, ProxyAgent } from 'undici';
@@ -174,20 +200,44 @@ async function downloadPyPIWheels() {
 			console.log(`  Saved: ${dest} (${buffer.length} bytes)`);
 		}
 
-		// Inject into pyodide-lock.json so micropip resolves locally
-		const normalizedName = pkg.replace(/-/g, '_');
-		if (!lockData.packages[normalizedName]) {
-			lockData.packages[normalizedName] = {
-				name: normalizedName,
+		// Runtime dependencies (skipping optional "extras"). micropip resolves a
+		// `depends` entry by looking it up as a dict key in pyodide-lock.json's
+		// `packages` object, after canonicalizing it PEP 503-style (lowercase,
+		// runs of "-_." collapsed to a single "-"). Verified empirically: a key
+		// stored in underscore form (e.g. "et_xmlfile") is NEVER matched, because
+		// canonicalization only ever folds towards hyphens, never the reverse —
+		// so the dict key below MUST be canonicalized the same way, not just
+		// have hyphens swapped for underscores (the previous, incorrect version
+		// of this script did that, silently breaking `depends` lookups for any
+		// dependency name PyPI declares with a hyphen).
+		// IMPORTANT: an empty `depends` here silently ships a package that
+		// imports fine at the top level but throws ModuleNotFoundError the
+		// moment it touches a submodule needing the missing dependency — this
+		// bit openpyxl (needs et-xmlfile) and python-pptx (needs Pillow,
+		// XlsxWriter) during testing, so this must stay accurate.
+		const canonicalize = (name) => name.toLowerCase().replace(/[-_.]+/g, '-');
+		const depends = (meta.info.requires_dist || [])
+			.filter((req) => !req.includes(';') || !req.includes('extra =='))
+			.map((req) => req.split(/[\s<>=!~;[]/)[0].trim())
+			.filter(Boolean)
+			.map(canonicalize);
+
+		// Inject into pyodide-lock.json so micropip resolves locally.
+		const canonicalName = canonicalize(pkg);
+		if (!lockData.packages[canonicalName]) {
+			lockData.packages[canonicalName] = {
+				name: pkg,
 				version: version,
 				file_name: wheel.filename,
 				install_dir: 'site',
 				sha256: wheel.digests?.sha256 || '',
 				package_type: 'package',
-				imports: [normalizedName],
-				depends: []
+				imports: [importNameOverrides[pkg] || pkg.replace(/-/g, '_')],
+				depends: depends
 			};
-			console.log(`  Added ${normalizedName}==${version} to pyodide-lock.json`);
+			console.log(
+				`  Added ${pkg}==${version} to pyodide-lock.json (depends: ${depends.join(', ') || 'none'})`
+			);
 		}
 	}
 
