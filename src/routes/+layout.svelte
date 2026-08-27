@@ -26,6 +26,8 @@
 		isLastActiveTab,
 		isApp,
 		appInfo,
+		appData,
+		models,
 		toolServers,
 		playingNotificationSound,
 		channels,
